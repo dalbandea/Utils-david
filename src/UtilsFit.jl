@@ -26,9 +26,15 @@ function fit_defs_yerr(f, x, dy)
     return lmfit, chisq
 end
 
-function fit_data_yerr(f, xv, yv, prms0) # Argument prms0 added by David
+function fit_data_yerr(f, xv, yv, prms0, wpm = missing) # Argument prms0 and wpm added by David
     
-    ADerrors.uwerr.(yv)
+    if ismissing(wpm)
+        ADerrors.uwerr.(yv)
+    else
+        for uwvalue in yv
+            ADerrors.uwerr(uwvalue, wpm)
+        end
+    end
     lm, csq = fit_defs_yerr(f, xv, ADerrors.err.(yv))
     
     prm0 = zeros(nparameters(f))
@@ -43,7 +49,11 @@ function fit_data_yerr(f, xv, yv, prms0) # Argument prms0 added by David
     fit  = LeastSquaresOptim.optimize(xx -> lm(xx, ADerrors.value.(yv)), prm0,
 		    LeastSquaresOptim.LevenbergMarquardt(), autodiff = :forward)
     
-    fitp, csqexp = ADerrors.fit_error(csq, fit.minimizer, yv)
+    if ismissing(wpm)
+        fitp, csqexp = ADerrors.fit_error(csq, fit.minimizer, yv)
+    else
+        fitp, csqexp = ADerrors.fit_error(csq, fit.minimizer, yv, wpm)
+    end
     
     return fitp, csqexp, fit.ssr    
 end
@@ -84,11 +94,11 @@ function fit_data_xyerr(f, xv, yv)
     return fitp, csqexp, fit.ssr
 end
 
-function fit_data(f, xv, yv, prms0) # Argument prms0 added by David
+function fit_data(f, xv, yv, prms0; wpm = missing) # Argument prms0 and wpm added by David
     if (isa(xv, Vector{ADerrors.uwreal}))
         return fit_data_xyerr(f, xv, yv)
     else
-        return fit_data_yerr(f, xv, yv, prms0)
+        return fit_data_yerr(f, xv, yv, prms0, wpm)
     end
 end
 
